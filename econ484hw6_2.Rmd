@@ -1,0 +1,69 @@
+---
+title: "Untitled"
+author: "Jingyi Cui"
+date: "5/26/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(ISLR)
+```
+
+
+# Logit Classifier
+```{r}
+OJ$Purchase <- ifelse(OJ$Purchase == "CH", 1, 0)
+OJ$StoreID <- as.factor(OJ$StoreID)
+OJ$Store7 <- as.factor(OJ$StoreID)
+OJ <- OJ[, -c(5, 11, 12, 14, 15, 16, 17, 18)]
+train_index <- sample(1:nrow(OJ), 800)
+test_index <- setdiff(1:nrow(OJ), train_index)
+
+# build x_train, y_train, x_test and y_test
+train_data <- OJ[train_index,]
+test_data <- OJ[test_index,]
+
+logit <- glm(as.factor(Purchase)~., data = train_data, family = 'binomial')
+summary(logit)
+pred_test = predict(logit, test_data[,-1], type = "response")
+result1 <- ifelse(pred_test > 0.5, 1, 0)
+tablee = table(result1, test_data$Purchase)
+precision = tablee[1,1]/(tablee[1,1] + tablee[2,1])
+recall = tablee[1,1]/(tablee[1,1]+tablee[1,2])
+f1 = 2*((precision*recall)/(precision + recall)) # f1-score 0.77
+```
+
+# random forest
+```{r}
+library(randomForest)
+```
+
+```{r}
+ranfore <- randomForest(as.factor(Purchase)~., data = train_data, importance = T) 
+summary(ranfore)
+pred_test = predict(ranfore, newdata = test_data)
+tablee = table(pred_test, test_data$Purchase)
+precision = tablee[1,1]/(tablee[1,1] + tablee[2,1])
+recall = tablee[1,1]/(tablee[1,1]+tablee[1,2])
+f1 = 2*((precision*recall)/(precision + recall)) # f1-score 0.72
+```
+
+# Neural Net
+```{r}
+library(nnet)
+```
+```{r}
+net <- nnet(as.factor(Purchase)~., data = train_data, size = 4)
+pred_test = predict(net, test_data, type = "class")
+pred_n = as.numeric(pred_test)
+tablee = table(pred_n, test_data$Purchase)
+precision = tablee[1,1]/(tablee[1,1] + tablee[2,1])
+recall = tablee[1,1]/(tablee[1,1]+tablee[1,2])
+f1 = 2*((precision*recall)/(precision + recall)) # 0.769
+```
+
+In terms of classfication, neural network is the best. In terms of interpretability,
+logit regression is the best. I will use neural network.
