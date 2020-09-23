@@ -1,0 +1,105 @@
+---
+title: "econ484final"
+author: "Jingyi Cui"
+date: "6/8/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import Dataset
+```{r}
+dir <- "C:/Users/cuijy/Desktop"
+pe <- read.csv(file.path(dir, "pe.csv"))
+ec <- read.csv(file.path(dir, "ec.csv"))
+```
+
+# Choose a few useful features to analyze
+```{r}
+ppe <- pe[, c("lat", "lon",  "bedrooms", "bathrooms", "surface_total", "surface_covered", "price")]
+eec <- ec[, c("lat", "lon",  "bedrooms", "bathrooms", "surface_total", "surface_covered", "price")]
+```
+
+# Summary Statistic
+```{r}
+#names(ppe)
+summary(ppe$price)
+hist(log(ppe$price),breaks = 100000)
+pairs(ppe[1:5000,3:7], pch = 2)
+```
+
+# Replace missing value with mean
+```{r}
+for(i in 1:ncol(ppe)){
+   ppe[is.na(ppe[,i]), i] <- mean(ppe[,i], na.rm = TRUE)
+}
+```
+
+# Split dataset
+```{r}
+set.seed(123)
+## will train the model only on 80% of the whole sample
+rand =runif(length(ppe$price), min = 0, max = 1)
+train=rep(FALSE,length(ppe$price))
+train[rand<=0.8]=TRUE
+test = !train
+
+train_data = ppe[train,]
+test_data = ppe[!train,]
+```
+
+```{r}
+library(Metrics)
+```
+
+
+
+# PE
+## Linear Model
+```{r}
+lm_pe <- lm(price ~ ., data = train_data)
+# summary(lm_pe)
+lm.pr <- predict(lm_pe, test_data)
+# summary(lm.pr)
+rmse(lm.pr, test_data$price) 
+```
+
+## Ridge Regression
+```{r}
+x = ppe[, 1:6]
+grid = 10^seq(-2, 10, length = 12)
+ridge = glmnet(as.matrix(x[train,]), as.matrix(train_data$price), alpha = 0, lambda = grid, thresh = 1e-12)
+ridge.pr = predict(ridge, s = 1000, newx = as.matrix(x[test,]))
+rmse(ridge.pr, test_data$price) 
+```
+
+## Lasso Regression
+```{r}
+lasso = glmnet(as.matrix(x[train,]), as.matrix(train_data$price), alpha = 1, lambda = grid)
+lasso.pr = predict(lasso, s = 4, newx = as.matrix(x[test,]))
+rmse(lasso.pr, test_data$price) 
+#plot(lasso)
+```
+
+## Decision Tree
+```{r}
+library(tree)
+```
+```{r}
+tre = tree(price~., data = train_data)
+tre.pr = predict(tre, test_data)
+rmse(tre.pr, test_data$price) 
+```
+
+## KNN
+```{r}
+library(class)
+```
+```{r}
+k = round(sqrt(nrow(ppe)))
+knn.pr = knn(train_data, test_data, train_data$price, k)
+rmse(as.numeric(knn.pr), test_data$price) 
+```
+
